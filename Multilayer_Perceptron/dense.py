@@ -68,42 +68,51 @@ class Dense():
         #Will be used in local gradient calculation
         return np.dot(self.outputs, (1 - self.outputs))
 
-    def loc_grad(self, targets, prev_loc_grads, prev_weights, layer, network):
+    def loc_grad(self, target, layer, network, prev_loc_grads, prev_weights):
         #Calculation of local gradients of all neurons in this layer -> ndarray
         #Save this to local gradietns -> ndarray
         if layer == network[-1]:
             #Output layer = error_at_end * derivative of activation function
-            error_at_end = (1/2) * np.power((layer.outputs - targets), 2)
+            error_at_end = (1/2) * np.power((layer.outputs - target), 2)
             self.loc_gradients = np.dot(error_at_end, self.d_sigmoid())
         else:
             # Hidden layers => derivative of activation function * sum of all (derivative of activation
             # function of previous layer * (loc_grad vector of previous layer * weights vector of previous layer
             # associated with output of current layer, which is input to previous layer))
-            self.loc_gradients = np.dot(self.d_sigmoid(), np.dot(prev_loc_grads, prev_weights))
+            self.loc_gradients = np.dot(self.d_sigmoid(), np.dot(prev_loc_grads, prev_weights.T))
 
-    def updater(self):
+    def updater(self, learning_rate, inputs_to_layer):
         #Update Weights and Biases, based on learning rate, local gradients and error
-        
-        pass
-
+        print('Got (Learning Rate)      : ', learning_rate)
+        print('Got (inputs_to_layer)    : ', inputs_to_layer)
+        print('Current Weights          : ', self.weights)
+        # TODO: Shape error in np.dot() in next line, figure it out
+        temp =  np.dot(np.array([self.loc_gradients]).T, np.array([inputs_to_layer])).T
+        self.weights = self.weights + learning_rate * temp
+        print('Updated Weights          : ', self.weights)
+    
     def forward_pass(self, inputs):
         #inputs times weights add a bias and activate
         #calculate error,  this doesn't fit here, but will find it out
         self.act_poten(inputs)
         self.sigmoid()
 
-    def backward_pass(self, targets, prev_loc_grads, prev_weights, layer, network):
+    def backward_pass(self, learning_rate, inputs_to_layer, target, layer,
+                      network, prev_loc_grads = None, prev_weights = None):
         #Calculate local gradient of all the neurons in this layer
         #Update weights and biases
-        self.loc_grad(targets, prev_loc_grads, prev_weights, layer, network)
-        print('Got (targets)        : ', targets)
-        print('Shape                : ', targets.shape)
-        print('Got (prev_loc_grad)  : ', prev_loc_grads)
-        print('Shape                : ', prev_loc_grads.shape)
-        print('Got (prev_weights)   : ', prev_weights)
-        print('Shape                : ', prev_weights.shape)
-        print('Got (layer)          : ', layer)
-        print('Got (network)        : ', network)
+        self.loc_grad(target, layer, network, prev_loc_grads, prev_weights)
+        print('Got (target)        : ', target)
+        #print('Shape                : ', target.shape)
+        #print('Got (prev_loc_grad)  : ', prev_loc_grads)
+        #print('Shape                : ', prev_loc_grads.shape)
+        #print('Got (prev_weights)   : ', prev_weights)
+        #print('Shape                : ', prev_weights.shape)
+        #print('Got (layer)          : ', layer)
+        #print('Got (network)        : ', network)
         print('Local Gradients: ', self.loc_gradients)
         print('Shape                : ', self.loc_gradients.shape)
+        #TODO: Next line calls the updater() method which has shape error in temp assignment
+        self.updater(learning_rate,inputs_to_layer)
+        print('Exiting BackwardPass...')
 

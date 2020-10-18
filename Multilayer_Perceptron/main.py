@@ -17,12 +17,13 @@ def main():
     X_test = X_test/X_test.max()
 
     #-------------------------------Experimental Code-----------------------------------------
-    
+    network = []
     print('-------------------------------------------------------------------')
     print("Layer: Dense1: ")
     print("-----------------------Forward Pass Layer 1------------------------")
 
     dense1  = Dense(5, 8)
+    network.append(dense1)
     print('Inputs Shape  : ', X_train[0].shape)
     print('Weights Shape : ', dense1.weights.shape)
     dense1.forward_pass(X_train[0])
@@ -34,10 +35,11 @@ def main():
     print("Min in outputs: ", dense1.outputs.min())
     print("-----------------------Forward Pass Layer 1------------------------")
     print('-------------------------------------------------------------------')
+    dense2 = Dense(8, 2)
+    network.append(dense2)
+
     print("Layer: Dense2: ")
     print("-----------------------Forward Pass Layer 2------------------------")
-
-    dense2 = Dense(8, 2)
     print("Input Shape   : ", dense1.outputs.shape)
     print("Weights Shape : ", dense2.weights.shape)
     dense2.forward_pass(dense1.outputs)
@@ -51,10 +53,13 @@ def main():
     print('--------------------------------------------------------------------')
     print('Layer: Dense2: ')
     print("-----------------------Backward Pass Layer 2------------------------")
+    print('Y_train 1st entry: ', y_train[0])
+    dense2.backward_pass(0.1, dense1.outputs ,y_train[0], dense2, network)
     print("-----------------------Backward Pass Layer 2------------------------")
     print('--------------------------------------------------------------------')
     print("Layer: Dense1: ")
     print("-----------------------Backward Pass Layer 1------------------------")
+    dense2.backward_pass(0.1, X_train[0], y_train[0], dense1, network, dense2.loc_gradients, dense2.weights)
     print("-----------------------Backward Pass Layer 1------------------------")
 
 
