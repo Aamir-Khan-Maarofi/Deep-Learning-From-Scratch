@@ -6,7 +6,7 @@ from dense import Dense
 def main():
     print("In Main .. Starting ..")
     
-    #Generating Data with 200 samples  containing 5 features and two traget classes
+    #Generating Data with 200 samples containing 5 features and two traget classes
     data = make_classification(n_samples=200, n_features=5, n_classes=2)
 
     #Spliting data into test and train sets
@@ -18,15 +18,48 @@ def main():
 
     #-------------------------------Experimental Code-----------------------------------------
     network = []
+    print("----------------------------Layer 1-------------------------")
+    network.append(Dense(5,8))
+    print("----------------------------Layer 2-------------------------")
+    network.append(Dense(8,2))
+    
+    c = 1
+    print(network[0].weights)
+    print(network[1].weights)
+    for x,y in zip(X_train, y_train):
+        print("      --------------- Training Sample {}-----------------".format(c))
+        #Keep track of inputs 
+        previous_inputs = []    
+        previous_inputs.append(x)
+        
+        for layer in network:
+            #Forward Pass
+            previous_inputs.append(layer.forward_pass(previous_inputs[-1]))
+        
+        #Ignore the output of last layer
+        previous_inputs = previous_inputs[:-1]
+
+        for layer, inp in zip(network[::-1], previous_inputs[::-1]):
+            #Backward Pass
+            if layer != network[-1]:
+                layer.backward_pass(0.1, inp, y, layer, network, prev_loc_gradients, prev_weights)
+            else:
+                layer.backward_pass(0.1, inp, y, layer, network)
+            prev_loc_gradients = layer.loc_gradients
+            prev_weights = layer.weights
+        c += 1
+    print(network[0].weights)
+    print(network[1].weights)
+'''
     print('-------------------------------------------------------------------')
     print("Layer: Dense1: ")
     print("-----------------------Forward Pass Layer 1------------------------")
 
-    dense1  = Dense(5, 8)
-    network.append(dense1)
+    
     print('Inputs Shape  : ', X_train[0].shape)
     print('Weights Shape : ', dense1.weights.shape)
-    dense1.forward_pass(X_train[0])
+    #dense1.forward_pass(X_train[0])
+    print('Output Shape  : ', dense1.outputs.shape)
 
     print("Max in act_pot: ", dense1.activation_potentials.max())
     print("Min in act_pot: ", dense1.activation_potentials.min())
@@ -35,15 +68,13 @@ def main():
     print("Min in outputs: ", dense1.outputs.min())
     print("-----------------------Forward Pass Layer 1------------------------")
     print('-------------------------------------------------------------------')
-    dense2 = Dense(8, 2)
-    network.append(dense2)
-
+    
     print("Layer: Dense2: ")
     print("-----------------------Forward Pass Layer 2------------------------")
     print("Input Shape   : ", dense1.outputs.shape)
     print("Weights Shape : ", dense2.weights.shape)
-    dense2.forward_pass(dense1.outputs)
-
+    #dense2.forward_pass(dense1.outputs)
+    print('Outputs Shape : ', dense2.outputs.shape)
     print("Max in act_pot: ", dense2.activation_potentials.max())
     print("Min in act_pot: ", dense2.activation_potentials.min())
     print()
@@ -59,12 +90,14 @@ def main():
     print('--------------------------------------------------------------------')
     print("Layer: Dense1: ")
     print("-----------------------Backward Pass Layer 1------------------------")
-    dense2.backward_pass(0.1, X_train[0], y_train[0], dense1, network, dense2.loc_gradients, dense2.weights)
+    dense1.backward_pass(0.1, X_train[0], y_train[0], dense1, network, dense2.loc_gradients, dense2.weights)
     print("-----------------------Backward Pass Layer 1------------------------")
 
 
     #-------------------------------Experimental Code-----------------------------------------
-    '''
+
+
+
     #Creating nework 
     MLP = MultiLayerPerceptron()
 
@@ -80,6 +113,6 @@ def main():
     #New Predictions
     #MLP.predict()
 
-    '''
+'''
 if __name__ == "__main__":
     main()
