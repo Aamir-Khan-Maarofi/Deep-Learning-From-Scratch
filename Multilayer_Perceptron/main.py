@@ -1,118 +1,137 @@
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
-from mlp import MultiLayerPerceptron
+from sklearn.preprocessing import OneHotEncoder
+
+import matplotlib.pyplot as plt
 from dense import Dense
+import numpy as np
+import random
 
 def main():
     print("In Main .. Starting ..")
     
-    #Generating Data with 200 samples containing 5 features and two traget classes
-    data = make_classification(n_samples=200, n_features=5, n_classes=2)
+    #Generating Data with 10 samples containing 4 features, one target calss 
+    #The target in binary either 0 or 1
+    data = make_classification(n_samples=10, n_features=4, n_classes=2)
 
-    #Spliting data into test and train sets
-    X_train, X_test, y_train, y_test = train_test_split(data[0], data[1])
-    
+    #Spliting training features and training targets
+    X_train = data[0]
+    y_train = data[1]
+
     #Normalizing the data in range [0,1]
     X_train = X_train/X_train.max()
-    X_test = X_test/X_test.max()
+
+    print('Training Data: (X)   : ', X_train)
+    print('Taraining Data: (y)  : ', y_train)
+    
+    #Encoding data using one hot encoding technique 
+    enc = OneHotEncoder(sparse = False)
+    desired = enc.fit_transform(y_train.reshape(-1,1))
+    print("One Hot encoded: (y) : ", desired)
+    
 
     #-------------------------------Experimental Code-----------------------------------------
+    #netwok is a list of all layers in the network, each time a layer is created as Dense() object, will be appended to network
     network = []
     print("----------------------------Layer 1-------------------------")
-    network.append(Dense(5,8))
+    network.append(Dense(4,6))
+    print('Created Only Hidden Layer: N_nodes: {} , N_inputs: {}'.format(6,4))
     print("----------------------------Layer 2-------------------------")
-    network.append(Dense(8,2))
+    network.append(Dense(6,2)) 
+    print('Created Output Layer: N_nodes: {} , N_inputs: {}'.format(2,6))    
     
-    c = 1
-    print(network[0].weights)
-    print(network[1].weights)
-    for x,y in zip(X_train, y_train):
-        print("      --------------- Training Sample {}-----------------".format(c))
-        #Keep track of inputs 
-        previous_inputs = []    
-        previous_inputs.append(x)
+    
+    
+    #List to store the total error
+    error = []
+    
+    #initialized epoch to 1
+    epoch = 1
+    
+    #The main training loop, exits at after 10 epochs
+    while epoch <= 10:
         
-        for layer in network:
-            #Forward Pass
-            previous_inputs.append(layer.forward_pass(previous_inputs[-1]))
-        
-        #Ignore the output of last layer
-        previous_inputs = previous_inputs[:-1]
+        # Random suffling of training data
+        temp = list(zip(X_train,y_train))
+        random.shuffle(temp)
+        X_train,y_train=zip(*temp)
 
-        for layer, inp in zip(network[::-1], previous_inputs[::-1]):
-            #Backward Pass
-            if layer != network[-1]:
-                layer.backward_pass(0.1, inp, y, layer, network, prev_loc_gradients, prev_weights)
-            else:
-                layer.backward_pass(0.1, inp, y, layer, network)
-            prev_loc_gradients = layer.loc_gradients
-            prev_weights = layer.weights
-        c += 1
-    print(network[0].weights)
-    print(network[1].weights)
-'''
-    print('-------------------------------------------------------------------')
-    print("Layer: Dense1: ")
-    print("-----------------------Forward Pass Layer 1------------------------")
+        #Variabels to store  the temporary state of the operations
+        weights = 0
+        biases = 0
 
+        #List to store the intermediate weights and biases for means square error calculation at end of each epoch
+        wb = []
+
+        print('--------------------------Epoch: {}-------------------------'.format(epoch), '\n')
+
+        #Select one feature vector from feature matrix and corresponding target vector from desired matrix (Which was obtained from one hot encoding)
+        for x,y in zip(X_train, desired):     
+            
+            #previous_inputs list keeps track of inputs from layer to layer in each epoch
+            previous_inputs = []
+            
+            #At start of each epoch, the list contains only inputs from input nodes which are the features of current training sample
+            previous_inputs.append(x)
+
+            #This loop iterates over all layers in network and perform forward pass
+            for layer in network:
+                #Forward_pass perform forward propagation of a layer of last element of the previous_inputs list, 
+                #and returns the output of layer which is stored as ndarray in list, as it will be used as inputs to next layer    
+                previous_inputs.append(layer.forward_pass(previous_inputs[-1]))
+            
+            #Ignore the output of last layer, as I'm using the preious_inputs array in reverse order in backward_pass in next loop
+            previous_inputs = previous_inputs[:-1]
+
+            #Next loop reverses the network and previous_inputs lists to perform  backward propagation of al layers from output layer all the way to input layer
+            for layer, prev_inputs in zip(network[::-1], previous_inputs[::-1]):
+                
+                #If the layer is not output layer then perform backward propagation using code inside if statement
+                if layer != network[-1]:
+
+                    #call to backward_pass using learning rate = 0.0001, inputs to current layer, target vector 'y', 
+                    #previous_loc_gradients (local gradients of layer next to current layer),
+                    #and prev_weights (weights of layer next to current layer) 
+                    #Store the updated weights and biases for mean square error calculation at end of epoch
+                    weights, biases = layer.backward_pass(0.0001, prev_inputs, y, prev_loc_gradients, prev_weights)
+                
+                #otherwise, perform the backward pass for output layer using code in else block
+                else:
+                    weights, biases = layer.backward_pass(0.0001, prev_inputs, y)
+                
+                #Store local gradietns nad weights of current layer for next layer backward pass
+                prev_loc_gradients = layer.loc_gradients
+                prev_weights = layer.weights
+                
+                #Add updated weights and biases to wb, will be using it in next loop
+                wb.append((weights, biases))
+
+            #error_i is sum of errors for all training examples on updated weights and biases
+            error_i = 0
+
+            #This loop calculates Total Error on new weights and biases, by considering the whole training data
+            for x_val, y_val in zip(X_train, desired):
+                previous_inputs = []    
+                previous_inputs.append(x_val)
+
+                #Perform  forward pass on new weights and biases
+                for layer in network:
+                    #Forward Pass
+                    previous_inputs.append(layer.forward_pass(previous_inputs[-1]))
+                
+                #add the error of prediction of current training sample to prevoius errors
+                error_i += np.power((previous_inputs[-1] - y_val), 2).sum()
+            
+            #Append total error of current sample to error list, and repeate the process for next sample, do this for all samples
+            error.append(error_i)
+
+        #Increase epoch by one, and perform forward, backward on next sample, and calculate error for all samples, do this until while  is true
+        epoch += 1
     
-    print('Inputs Shape  : ', X_train[0].shape)
-    print('Weights Shape : ', dense1.weights.shape)
-    #dense1.forward_pass(X_train[0])
-    print('Output Shape  : ', dense1.outputs.shape)
-
-    print("Max in act_pot: ", dense1.activation_potentials.max())
-    print("Min in act_pot: ", dense1.activation_potentials.min())
-    print()
-    print("Max in outputs: ", dense1.outputs.max())
-    print("Min in outputs: ", dense1.outputs.min())
-    print("-----------------------Forward Pass Layer 1------------------------")
-    print('-------------------------------------------------------------------')
-    
-    print("Layer: Dense2: ")
-    print("-----------------------Forward Pass Layer 2------------------------")
-    print("Input Shape   : ", dense1.outputs.shape)
-    print("Weights Shape : ", dense2.weights.shape)
-    #dense2.forward_pass(dense1.outputs)
-    print('Outputs Shape : ', dense2.outputs.shape)
-    print("Max in act_pot: ", dense2.activation_potentials.max())
-    print("Min in act_pot: ", dense2.activation_potentials.min())
-    print()
-    print("Max in outputs: ", dense2.outputs.max())
-    print("Min in outputs: ", dense2.outputs.min())
-    print("-----------------------Forward Pass Layer 2-------------------------")
-    print('--------------------------------------------------------------------')
-    print('Layer: Dense2: ')
-    print("-----------------------Backward Pass Layer 2------------------------")
-    print('Y_train 1st entry: ', y_train[0])
-    dense2.backward_pass(0.1, dense1.outputs ,y_train[0], dense2, network)
-    print("-----------------------Backward Pass Layer 2------------------------")
-    print('--------------------------------------------------------------------')
-    print("Layer: Dense1: ")
-    print("-----------------------Backward Pass Layer 1------------------------")
-    dense1.backward_pass(0.1, X_train[0], y_train[0], dense1, network, dense2.loc_gradients, dense2.weights)
-    print("-----------------------Backward Pass Layer 1------------------------")
-
-
+    #Plot the errors after training completes, 
+    plt.plot(error)
+    plt.show()
     #-------------------------------Experimental Code-----------------------------------------
 
-
-
-    #Creating nework 
-    MLP = MultiLayerPerceptron()
-
-    #Training network
-    #MLP.train()
-
-    #Testing network
-    #MLP.test()
-
-    #Validating network
-    #MLP.validate()
-
-    #New Predictions
-    #MLP.predict()
-
-'''
 if __name__ == "__main__":
     main()
